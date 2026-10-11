@@ -1,8 +1,14 @@
 import os
 from datetime import datetime
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # local .env convenience; GitHub Actions supplies vars via secrets
+except Exception:
+    pass
 from politician_trades import PoliticianTradeTracker
 from ipo_alerts import IPOTracker
 from email_alerts import EmailAlerter
+from feishu_alerts import FeishuAlerter
 
 def main():
     print(f"Starting daily stock and IPO check at {datetime.now()}")
@@ -26,12 +32,15 @@ def main():
             alerts.append(ipo_tracker.format_ipo_alert(ipo))
 
     if alerts:
+        feishu_webhook = os.getenv('FEISHU_WEBHOOK')
         recipient = os.getenv('ALERT_EMAIL')
-        if recipient:
+        if feishu_webhook:
+            FeishuAlerter().send_alert("🚀 Daily Stock & IPO Alerts", alerts)
+        elif recipient:
             alerter = EmailAlerter(recipient)
             alerter.send_alert("🚀 Daily Stock & IPO Alerts", alerts)
         else:
-            print("ALERT_EMAIL not set. Displaying alerts:")
+            print("No FEISHU_WEBHOOK/ALERT_EMAIL set. Displaying alerts:")
             for alert in alerts:
                 print(f"\n{alert}\n")
     else:
